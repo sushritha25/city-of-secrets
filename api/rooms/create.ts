@@ -24,7 +24,7 @@ export default async function handler(req: any, res: any) {
   }
 
   const url = process.env.SUPABASE_URL;
-  const key = process.env.CITY_GAME_DATABASE_SECRET;
+  const key = process.env.SUPABASE_SECRET_KEY;
 
   if (!url || !key) {
     return res.status(500).json({
