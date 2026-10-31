@@ -20,14 +20,16 @@ export default async function handler(req: any, res: any) {
       : "";
 
   if (!playerName) {
-    return res.status(400).json({ error: "Enter your player name" });
+    return res.status(400).json({ error: "Enter a player name" });
   }
 
   const url = process.env.SUPABASE_URL;
   const key = process.env.CITY_GAME_DATABASE_SECRET;
 
   if (!url || !key) {
-    return res.status(500).json({ error: "Server configuration missing" });
+    return res.status(500).json({
+      error: "Server configuration missing",
+    });
   }
 
   const supabase = createClient(url, key, {
@@ -36,6 +38,7 @@ export default async function handler(req: any, res: any) {
 
   for (let attempt = 0; attempt < 5; attempt++) {
     const roomCode = generateRoomCode();
+
     const guestToken = randomBytes(32).toString("hex");
     const guestTokenHash = createHash("sha256")
       .update(guestToken)
@@ -55,8 +58,17 @@ export default async function handler(req: any, res: any) {
       .single();
 
     if (roomError) {
-      if (roomError.code === "23505") continue;
-      return res.status(500).json({ error: "Could not create room" });
+      if (roomError.code === "23505") {
+        continue;
+      }
+
+      console.error("Room creation error:", roomError);
+
+      return res.status(500).json({
+        error: roomError.message,
+        code: roomError.code,
+        details: roomError.details,
+      });
     }
 
     const { data: player, error: playerError } = await supabase
@@ -73,13 +85,19 @@ export default async function handler(req: any, res: any) {
       .single();
 
     if (playerError) {
+      console.error("Host player creation error:", playerError);
+
       await supabase
         .schema("game_private")
         .from("rooms")
         .delete()
         .eq("id", room.id);
 
-      return res.status(500).json({ error: "Could not add host player" });
+      return res.status(500).json({
+        error: playerError.message,
+        code: playerError.code,
+        details: playerError.details,
+      });
     }
 
     return res.status(201).json({
@@ -90,5 +108,7 @@ export default async function handler(req: any, res: any) {
     });
   }
 
-  return res.status(500).json({ error: "Please try creating the room again" });
+  return res.status(500).json({
+    error: "Please try creating the room again",
+  });
 }
